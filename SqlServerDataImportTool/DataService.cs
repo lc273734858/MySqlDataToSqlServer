@@ -346,43 +346,60 @@ namespace SqlServerDataImportTool
         private static object lockobject = new object();
         public void WorkInThread(object objIndex)
         {
-            int index = (int)objIndex;
-            var queue = GetQueuePool(index);
-            bool go = true;
-            while (go && needstop == false)
+            try
             {
-                TaskItem tinfo = null;
-                try
+                int index = (int)objIndex;
+                var queue = GetQueuePool(index);
+                bool go = true;
+                while (go && needstop == false)
                 {
-                    tinfo = queue.Dequeue();
-                }
-                catch (Exception)
-                {
-                    if (canStop)
+                    TaskItem tinfo = null;
+                    try
                     {
-                        go = false;
-                        logerUI.Invoke($"线程{Thread.CurrentThread.ManagedThreadId}-执行完毕");
-                        break;
+                        tinfo = queue.Dequeue();
                     }
-                    else
+                    catch (Exception)
                     {
-                        Thread.Sleep(1000);
+                        if (canStop)
+                        {
+                            go = false;
+                            logerUI.Invoke($"线程{Thread.CurrentThread.ManagedThreadId}-执行完毕");
+                            break;
+                        }
+                        else
+                        {
+                            Thread.Sleep(1000);
+                        }
+                    }
+                    if (tinfo != null)
+                    {
+                        try
+                        {
+                            var taskname = GenerateTaskName(tinfo);
+                            logerUI.Invoke($"开始执行:{taskname}");
+                            var success = ServiceMySQL.ExportDataFromTable(tinfo.DataBase, tinfo.TableName, tinfo.startindex, tinfo.pagesize, ServiceSQL);
+                            if (success)
+                            {
+                                //添加执行完毕的记录
+                                CacheService.AddLog(tinfo.DataBase, tinfo.TableName, taskname);
+                            }
+                            logerUI.Invoke($"执行完毕{taskname}");
+                        }
+                        catch (Exception ex1)
+                        {
+                            loger.Error(ex1.ToString());
+                        }
                     }
                 }
-                if (tinfo != null)
-                {
-                    var taskname = GenerateTaskName(tinfo);
-                    logerUI.Invoke($"开始执行:{taskname}");
-                    var success = ServiceMySQL.ExportDataFromTable(tinfo.DataBase, tinfo.TableName, tinfo.startindex, tinfo.pagesize, ServiceSQL);
-                    if (success)
-                    {
-                        //添加执行完毕的记录
-                        CacheService.AddLog(tinfo.DataBase, tinfo.TableName, taskname);
-                    }
-                    logerUI.Invoke($"执行完毕{taskname}");
-                }
+                //EndOneThread();
             }
-            EndOneThread();
+            catch (Exception ex)
+            {
+                loger.Error(ex.ToString());
+            }
+            finally {
+                EndOneThread();
+            }
         }
 
         public List<string> MergeList(List<string> leftList, List<string> rightList)

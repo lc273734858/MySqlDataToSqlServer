@@ -19,7 +19,7 @@ namespace SqlServerDataImportTool.DataCore
         {
         }
 
-        protected override string ConnectionTempate => "server={0};database=ezp-base;uid={1};pwd={2};Connection Timeout=300;Charset=utf8;Pooling=True;";
+        protected override string ConnectionTempate => "server={0};database=ezp-base;uid={1};pwd={2};Connection Timeout=3000;Charset=utf8;Pooling=True;";
 
         protected override string GetAllDbSql => "show databases";
 
@@ -38,7 +38,7 @@ namespace SqlServerDataImportTool.DataCore
             using (var conn=GetConnection())
             {
                 var sql = string.Format(GetDatasTempate, database, tablename, startindex, endindex);
-                using (var reader = conn.ExecuteReader(sql, commandTimeout: 300))
+                using (var reader = conn.ExecuteReader(sql, commandTimeout: 3000))
                 {
                     return sqlServercore.ImportData(database, tablename, reader);
                 }

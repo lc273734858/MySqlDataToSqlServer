@@ -27,6 +27,7 @@ namespace SqlServerDataImportTool
             try
             {
                 DisableAllButton();
+                btn_Stop.Enabled = true;
                 InitService();
                 service.StartWork();
             }
