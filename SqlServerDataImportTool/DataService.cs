@@ -105,8 +105,9 @@ namespace SqlServerDataImportTool
             var mysqldblist = ServiceMySQL.GetAllDataBaseName();
             var existdblist = MergeList(sqlserverdblist, mysqldblist);
             logerUI.Invoke("互相都存在的数据库:" + string.Join(",", existdblist));
-            Action<string> checkcount = (dbname) => {
-                count+=CheckCountDb(dbname);
+            Action<string> checkcount = (dbname) =>
+            {
+                count += CheckCountDb(dbname);
             };
             if (dbworkinfo.MySqlDataBase.Equals("*"))
             {
@@ -149,7 +150,7 @@ namespace SqlServerDataImportTool
 
             Action<string> checktable = (tbname) =>
             {
-                if (CheckCounttable(databasename, tbname,ref count))
+                if (CheckCounttable(databasename, tbname, ref count))
                 {
                     successtable.AppendLine($"`{databasename}`.`{tbname}`");
                 }
@@ -184,7 +185,7 @@ namespace SqlServerDataImportTool
             loger.Info(successtable.ToString());
             return count;
         }
-        internal bool CheckCounttable(string db, string tablename,ref int count)
+        internal bool CheckCounttable(string db, string tablename, ref int count)
         {
             var sqlcount = ServiceSQL.CountTableRecord(db, tablename);
             var mysqlcount = ServiceMySQL.CountTableRecord(db, tablename);
@@ -308,6 +309,7 @@ namespace SqlServerDataImportTool
             ts.Hours, ts.Minutes, ts.Seconds,
             ts.Milliseconds / 10);
             logerUI.Invoke($"线程总共执行时间{elapsedTime}");
+            loger.Info($"线程总共执行时间{elapsedTime}");
             form1.EnableAllButton();
         }
         private void EndOneThread()
@@ -324,21 +326,43 @@ namespace SqlServerDataImportTool
         public void AddTask(string databasename, string tablename)
         {
             var queue = GetQueuePoolInTurn();
-            int count = ServiceMySQL.CountTableRecord(databasename, tablename);
+            int count = 0;
             int startindex = 0;
+            agin:
+            try
+            {
+                count = ServiceMySQL.CountTableRecord(databasename, tablename);
+                var sqlcount = ServiceSQL.CountTableRecord(databasename, tablename);
+                if (count == sqlcount)
+                {
+                    var msg = $"{databasename}-{tablename}数据一致，跳过";
+                    loger.Info(msg);
+                    logerUI.Invoke(msg);
+                    return;
+                }
+                count -= sqlcount;
+                startindex = sqlcount;
+            }
+            catch (Exception ex)
+            {
+                loger.Error(ex.ToString());
+                logerUI.Invoke($"{databasename}-{tablename}获取数据总量失败，重试");
+                goto agin;
+            }
+
             while (count > 0)
             {
                 var taskitem = new TaskItem(databasename, tablename, startindex, batchCount);
                 var taskname = GenerateTaskName(taskitem);
-                if (CacheService.ExistTask(taskname) == false)
-                {
-                    queue.Enqueue(taskitem);
-                    logerUI.Invoke($"创建任务:{taskname}");
-                }
-                else
-                {
-                    logerUI.Invoke($"任务:{taskname} 已经执行完毕，跳过");
-                }
+                //if (CacheService.ExistTask(taskname) == false)
+                //{
+                queue.Enqueue(taskitem);
+                logerUI.Invoke($"创建任务:{taskname}");
+                //}
+                //else
+                //{
+                //    logerUI.Invoke($"任务:{taskname} 已经执行完毕，跳过");
+                //}
                 startindex += batchCount;
                 count -= batchCount;
             }
@@ -381,7 +405,7 @@ namespace SqlServerDataImportTool
                             if (success)
                             {
                                 //添加执行完毕的记录
-                                CacheService.AddLog(tinfo.DataBase, tinfo.TableName, taskname);
+                                //CacheService.AddLog(tinfo.DataBase, tinfo.TableName, taskname);
                             }
                             logerUI.Invoke($"执行完毕{taskname}");
                         }
@@ -395,9 +419,11 @@ namespace SqlServerDataImportTool
             }
             catch (Exception ex)
             {
+                loger.Info($"线程出错并结束{objIndex}");
                 loger.Error(ex.ToString());
             }
-            finally {
+            finally
+            {
                 EndOneThread();
             }
         }

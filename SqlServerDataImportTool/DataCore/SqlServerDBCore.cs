@@ -51,11 +51,11 @@ namespace SqlServerDataImportTool.DataCore
                     }
                     catch (Exception ex)
                     {
-                        loger.Error($"数据库{database}-表{tablename}{ex.ToString()}");
-                        if (ex.Message.IndexOf("PRIMARY KEY",StringComparison.OrdinalIgnoreCase)>0)
+                        if (ex.Message.IndexOf("PRIMARY KEY", StringComparison.OrdinalIgnoreCase) > 0)
                         {
                             return true;
                         }
+                        loger.Error($"数据库{database}-表{tablename}{ex.ToString()}");
                         return false;
                     }                    
                 }

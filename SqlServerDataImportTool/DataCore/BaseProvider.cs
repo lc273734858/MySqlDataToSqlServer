@@ -34,7 +34,7 @@ namespace SqlServerDataImportTool.DataCore
         {
             using (var conn = GetConnection())
             {
-                return conn.Query<T>(sql);
+                return conn.Query<T>(sql,commandTimeout:300);
             }
         }
         public List<string> GetAllDataBaseName()
